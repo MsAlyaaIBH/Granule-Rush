@@ -535,7 +535,7 @@ function hud() {
       <div class="stat">Level <b>${q.lvl + 1}</b>/4</div>
       <div class="stat">Q <b>${S.qi + 1}</b>/${Q.length}</div>
       ${S.teams.length === 1 ? `<div class="stat">Score <b>${t.score}</b></div><div class="stat">Streak <b>${t.streak}</b>${t.streak >= 5 ? " ×2" : t.streak >= 3 ? " ×1.5" : ""}</div>` : ""}
-    </div>` : `<div class="stats muted">PHD212 · L4 Granules · v3${formReady() ? " · scores on" : ""}</div>`}
+    </div>` : `<div class="stats muted">PHD212 · L4 Granules</div>`}
     <button class="iconbtn" id="mute" aria-pressed="${!S.muted}">${S.muted ? "Sound off" : "Sound on"}</button>
   </header>`;
 }
