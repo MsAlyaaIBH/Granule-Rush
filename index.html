@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Granule Rush</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one-screen game. Top HUD, question card left, growing "granule" meter right; stacks on phones.
+   Single committed look: deep granulation-room green, sage particles, amber for points. */
+:root {
+  color-scheme: dark;
+  --bg: #0F2621;
+  --panel: #173831;
+  --panel-2: #1F463D;
+  --line: #2C5A4F;
+  --fg: #EEF5F1;
+  --muted: #A9C2B8;
+  --sage: #8FB9A8;
+  --amber: #F2B33D;
+  --amber-ink: #2A1C00;
+  --good: #5FD39A;
+  --good-bg: #173F30;
+  --bad: #FF7D6B;
+  --bad-bg: #4A221D;
+  --font-display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Courier New", monospace;
+  --r: 14px;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 28px;
+  background-image: radial-gradient(circle at 85% -10%, #1E4A40 0, transparent 45%);
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 16px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.1; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--sage); }
+.muted { color: var(--muted); }
+
+/* HUD */
+.hud { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 16px; }
+.hud .brand { font-family: var(--font-display); font-weight: 800; font-size: 20px; }
+.hud .brand span { color: var(--amber); }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 18px; font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; }
+.stat b { color: var(--amber); font-size: 16px; }
+.iconbtn { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
+
+/* Main grid */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; min-width: 0; }
+.side { display: grid; gap: 16px; }
+
+/* Start screen */
+.hero h1 { font-size: clamp(40px, 7vw, 76px); font-weight: 800; letter-spacing: -.02em; }
+.hero h1 em { font-style: normal; color: var(--amber); }
+.hero p { max-width: 60ch; color: var(--muted); margin: 12px 0 0; }
+.setup { display: grid; gap: 18px; margin-top: 22px; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.seg button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; }
+.seg button[aria-pressed="true"] { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); font-weight: 700; }
+.teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.teams input { width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; color: var(--fg); padding: 9px 12px; font: inherit; }
+.levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.lvl { background: var(--panel-2); border-radius: 12px; padding: 12px 14px; }
+.lvl b { display: block; font-family: var(--font-display); font-size: 17px; }
+.lvl span { font-size: 14px; color: var(--muted); }
+.big { background: var(--amber); color: var(--amber-ink); border: 0; border-radius: 999px; padding: 14px 28px; font-weight: 700; font-size: 18px; font-family: var(--font-display); }
+.big:hover { filter: brightness(1.06); }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 12px 22px; font-weight: 700; }
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 15px; }
+.rules div { border-left: 0; background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+.rules b { color: var(--amber); font-family: var(--font-mono); }
+
+/* Question */
+.qhead { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.turn { font-family: var(--font-mono); font-size: 13px; background: var(--amber); color: var(--amber-ink); padding: 3px 10px; border-radius: 999px; font-weight: 700; }
+.qtext { font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 3vw, 30px); margin: 14px 0 18px; }
+.timer { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; margin-bottom: 18px; }
+.timer i { display: block; height: 100%; background: var(--sage); width: 100%; transition: width .25s linear; }
+.timer.low i { background: var(--bad); }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .opts { grid-template-columns: 1fr; } }
+.opt { text-align: left; background: var(--panel-2); border: 2px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; min-height: 60px; }
+.opt:hover:not(:disabled) { border-color: var(--sage); }
+.opt .k { font-family: var(--font-mono); font-size: 13px; background: var(--bg); border-radius: 6px; padding: 2px 8px; color: var(--sage); flex: none; margin-top: 2px; }
+.opt.gone { opacity: .25; text-decoration: line-through; }
+.opt.right { border-color: var(--good); background: var(--good-bg); }
+.opt.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.opt.sel { border-color: var(--amber); }
+.opt:disabled { cursor: default; }
+.tools { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; align-items: center; }
+.life { background: transparent; border: 1px dashed var(--sage); color: var(--sage); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
+.life:disabled { opacity: .35; cursor: default; }
+.hint { margin-top: 14px; background: var(--bg); border-radius: 10px; padding: 10px 14px; font-size: 15px; color: var(--muted); }
+.submit { margin-left: auto; }
+
+/* Order + match */
+.pick { display: grid; gap: 10px; }
+.chip { text-align: left; background: var(--panel-2); border: 2px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; gap: 12px; align-items: center; }
+.chip .n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); color: var(--muted); font-family: var(--font-mono); font-size: 13px; flex: none; }
+.chip.on .n { background: var(--amber); color: var(--amber-ink); font-weight: 700; }
+.chip.on { border-color: var(--amber); }
+.chip.right { border-color: var(--good); background: var(--good-bg); }
+.chip.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.match { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 520px) { .match { grid-template-columns: 1fr; } }
+.match .col { display: grid; gap: 10px; align-content: start; }
+.chip .tag { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--amber); }
+
+/* Feedback */
+.fb { margin-top: 18px; border-radius: 12px; padding: 16px 18px; display: grid; gap: 8px; animation: pop .3s ease-out; }
+.fb.good { background: var(--good-bg); border: 1px solid var(--good); }
+.fb.bad { background: var(--bad-bg); border: 1px solid var(--bad); }
+.fb h3 { font-size: 22px; }
+.fb .pts { font-family: var(--font-mono); color: var(--amber); font-weight: 700; }
+.fb .ref { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+@keyframes pop { from { transform: scale(.97); } to { transform: scale(1); } }
+
+/* Side: granule meter */
+.meter h3 { font-size: 18px; }
+.meter svg { width: 100%; max-width: 260px; height: auto; display: block; margin: 8px auto 4px; }
+.meter .cap { text-align: center; font-size: 14px; color: var(--muted); }
+.rankname { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--amber); }
+.board { display: grid; gap: 8px; }
+.row { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: var(--bg); border-radius: 10px; padding: 8px 12px; font-variant-numeric: tabular-nums; }
+.row.active { outline: 2px solid var(--amber); }
+.row .nm { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.row .sc { font-family: var(--font-mono); color: var(--amber); }
+.row .st { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.progress { display: flex; gap: 4px; flex-wrap: wrap; }
+.progress i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.progress i.g { background: var(--good); }
+.progress i.b { background: var(--bad); }
+.progress i.c { outline: 2px solid var(--amber); }
+
+/* Level splash + end */
+.splash { text-align: left; padding-block: 34px; }
+.splash h2 { font-size: clamp(34px, 6vw, 60px); font-weight: 800; margin: 8px 0 10px; }
+.splash p { color: var(--muted); max-width: 55ch; margin: 0 0 22px; }
+.endgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 18px 0; }
+.tile { background: var(--bg); border-radius: 12px; padding: 14px; }
+.tile b { display: block; font-family: var(--font-display); font-size: 30px; color: var(--amber); font-variant-numeric: tabular-nums; }
+.tile span { font-size: 14px; color: var(--muted); }
+.review { display: grid; gap: 10px; margin-top: 16px; }
+.review details { background: var(--bg); border-radius: 10px; padding: 10px 14px; }
+.review summary { cursor: pointer; font-weight: 700; }
+.ranks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ranks span { font-size: 13px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: var(--muted); }
+.ranks span.me { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); font-weight: 700; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.kbd { font-size: 13px; color: var(--muted); margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+[hidden]{display:none!important}
+body{margin:0}
+img{max-width:100%}
+</style>
+
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+const LEVELS = [
+  { name: "Powder to granule", blurb: "Definition, size, shape and why we use granules.", slides: "Slides 4–7" },
+  { name: "Granulation", blurb: "Why we granulate, the steps, and how bonds form.", slides: "Slides 8–11" },
+  { name: "Machines & dry methods", blurb: "Fluid beds, mixers, slugging and roller compaction.", slides: "Slides 12–17" },
+  { name: "Products & dispensing", blurb: "Effervescent granules, formulas, containers and counselling.", slides: "Slides 18–22" },
+];
+
+const Q = [
+  // Level 1
+  { lvl: 0, type: "mc", q: "What is the typical size range of granules used as a dosage form?",
+    opts: ["1.7 – 4.75 mm (sieve 4–12)", "0.85 – 1.7 mm (sieve 12–20)", "0.1 – 0.45 mm", "5 – 10 mm"], a: 0,
+    why: "Granules used as a dosage form usually fall between sieve no. 4 (4.75 mm) and no. 12 (1.7 mm). The 12–20 range is for tablet manufacture.", slide: 5,
+    hint: "Think of the bigger of the two ranges on the size slide." },
+  { lvl: 0, type: "tf", q: "True or false: a higher sieve number means a coarser mesh.", a: 1,
+    why: "False. A higher sieve number has more openings per inch, so the mesh is finer. No. 4 = 4.75 mm, no. 20 = 0.85 mm.", slide: 5,
+    hint: "Compare sieve no. 4 with sieve no. 20." },
+  { lvl: 0, type: "mc", q: "Granules for tablet manufacture are usually prepared in which sieve range?",
+    opts: ["12 to 20", "4 to 12", "2 to 4", "40 to 60"], a: 0,
+    why: "Granulations for tablets are made smaller, in the 12–20 sieve range (about 0.85–1.7 mm), so they fill tablet dies evenly.", slide: 5,
+    hint: "Smaller than granules taken as a dosage form." },
+  { lvl: 0, type: "mc", q: "In the granulation study, what did granules larger than 2 mm indicate?",
+    opts: ["Over-wetting", "Failure of aggregation", "Best performance", "Incomplete blending"], a: 0,
+    why: "Too much granulating liquid gives large, lumpy aggregates (over-wetting). Below 0.45 mm the particles failed to aggregate; 0.45–2 mm performed best.", slide: 6,
+    hint: "What happens if you add too much liquid?" },
+  { lvl: 0, type: "mc", q: "Which of these is NOT a reason to use granules as a dosage form?",
+    opts: ["The drug must be given intravenously", "The dose is too large for a tablet", "The drug is unstable in liquid", "The drug tastes bitter"], a: 0,
+    why: "Granules are an oral dosage form. Large doses, unpleasant taste, instability in liquid and difficulty swallowing are all reasons to use them.", slide: 7,
+    hint: "Granules are taken by mouth." },
+
+  // Level 2
+  { lvl: 1, type: "mc", q: "Which of these is a reason to granulate a powder mix?",
+    opts: ["To prevent segregation of the ingredients", "To increase the surface area exposed to air", "To make the powder more hygroscopic", "To reduce the drug content"], a: 0,
+    why: "We granulate to prevent segregation, improve flow, improve compaction and reduce dust.", slide: 8,
+    hint: "Think about keeping each dose uniform." },
+  { lvl: 1, type: "order", q: "Put the wet granulation steps in the right order.",
+    items: ["Blend", "Wet mass", "Wet screen", "Dry", "Size (dry screen)"],
+    why: "Blend → wet mass with binder solution → force through a coarse sieve → dry → dry screen to a uniform size.", slide: 9 },
+  { lvl: 1, type: "mc", q: "In wet granulation, what turns liquid bridges into solid bridges?",
+    opts: ["Drying", "Compression", "Sieving", "Cooling in a fridge"], a: 0,
+    why: "As the solvent evaporates during drying, the dissolved binder hardens and the liquid bridges become solid bridges.", slide: 11,
+    hint: "It's a step that removes the solvent." },
+  { lvl: 1, type: "mc", q: "A granulating fluid must be…",
+    opts: ["Volatile and non-toxic", "Viscous and non-volatile", "Always purified water", "Acidic, to speed bonding"], a: 0,
+    why: "It must be removable by drying (volatile) and safe (non-toxic). Water, ethanol and isopropanol are common, alone or combined.", slide: 11,
+    hint: "It has to leave during drying." },
+  { lvl: 1, type: "mc", q: "Which of these is used as a binder in wet granulation?",
+    opts: ["Povidone (PVP)", "Magnesium stearate", "Sodium bicarbonate", "Amaranth"], a: 0,
+    why: "PVP, starch paste, gelatin, methylcellulose/HPMC, acacia and tragacanth are binders. Magnesium stearate is a lubricant and amaranth is a colourant.", slide: 11,
+    hint: "Also known as povidone." },
+
+  // Level 3
+  { lvl: 2, type: "mc", q: "In which equipment do mixing, wetting and drying all happen in one unit?",
+    opts: ["Fluidized bed granulator", "Slugging tablet press", "Roller compactor", "Granule screener"], a: 0,
+    why: "In a fluidized bed, hot air suspends the powder, binder is sprayed on, and the same air dries the granules: a one-pot process.", slide: 13,
+    hint: "Hot air suspends the particles." },
+  { lvl: 2, type: "mc", q: "In a high-shear mixer granulator, what breaks the wet mass into granules?",
+    opts: ["The chopper", "The impeller", "Hot air from below", "A pair of rollers"], a: 0,
+    why: "The impeller mixes and wets the powder; the chopper breaks the wet mass into granules.", slide: 14,
+    hint: "The impeller mixes. The other blade…" },
+  { lvl: 2, type: "mc", q: "A drug degrades when it gets wet. Which method should you choose?",
+    opts: ["Dry granulation", "Wet granulation with water", "High-shear granulation with water", "Fluid bed granulation with water"], a: 0,
+    why: "Dry granulation (slugging or roller compaction) uses no liquid and no drying, so it suits moisture- and heat-sensitive drugs.", slide: 15,
+    hint: "Avoid every liquid." },
+  { lvl: 2, type: "mc", q: "What is slugging?",
+    opts: ["Compressing powder into large tablets on a heavy-duty press, then milling them", "Squeezing powder between two rollers into a sheet", "Spraying binder onto fluidized powder", "Forcing a wet mass through a sieve"], a: 0,
+    why: "Slugging makes large 'slugs' on a heavy-duty tablet press, then mills and screens them. The rollers describe roller compaction.", slide: 16,
+    hint: "It uses a tablet press." },
+  { lvl: 2, type: "tf", q: "True or false: dry granulation produces less dust and fines than wet granulation.", a: 1,
+    why: "False. More dust and fines is a known limitation of dry granulation; fines are screened out and recycled.", slide: 10,
+    hint: "Check the limitations row of the wet vs dry table." },
+  { lvl: 2, type: "mc", q: "Why are granules less likely to cake or harden on standing than powders?",
+    opts: ["Less surface area is exposed to humidity", "They contain more water", "They are always coated", "They are stored in the fridge"], a: 0,
+    why: "Granules have less surface area than the same volume of powder, so they pick up less moisture and stay free-flowing.", slide: 17,
+    hint: "Think about surface area." },
+
+  // Level 4
+  { lvl: 3, type: "mc", q: "What reacts in effervescent granules to release carbon dioxide?",
+    opts: ["Citric/tartaric acid and sodium bicarbonate", "Lactose and water", "Methylcellulose and tragacanth", "Sodium chloride and ethanol"], a: 0,
+    why: "Acid + NaHCO₃ → salt + H₂O + CO₂. The fizz masks taste and helps the drug dissolve.", slide: 18,
+    hint: "An acid plus a base." },
+  { lvl: 3, type: "mc", q: "In the wet method for effervescent granules, the granulating fluid is…",
+    opts: ["A non-aqueous liquid such as ethanol", "Purified water", "Syrup", "Dilute hydrochloric acid"], a: 0,
+    why: "Water would start the acid–base reaction early. A non-aqueous liquid such as ethanol avoids that.", slide: 18,
+    hint: "Water would make it fizz too soon." },
+  { lvl: 3, type: "match", q: "Match each ingredient in methylcellulose granules to its role.",
+    pairs: [["Tragacanth", "Binder"], ["Lactose", "Diluent"], ["Amaranth", "Colouring agent"], ["Aspartame", "Sweetener"]],
+    why: "Methylcellulose is the active (bulk laxative), tragacanth binds, lactose fills to 100 g, amaranth colours and aspartame sweetens.", slide: 20 },
+  { lvl: 3, type: "mc", q: "Erythromycin granules are supplied dry mainly because…",
+    opts: ["The drug is unstable in liquid, so it is reconstituted before dispensing", "Granules are cheaper than tablets", "Children prefer the taste of dry granules", "The dose is too small for a tablet"], a: 0,
+    why: "Erythromycin degrades in solution, so it is supplied as granules for oral suspension and reconstituted with water before dispensing.", slide: 19,
+    hint: "Think about stability." },
+  { lvl: 3, type: "mc", q: "Which container is suitable for dispensing bulk granules?",
+    opts: ["Plain glass or plastic jar with an airtight closure and a measuring spoon", "Paper envelope", "Dropper bottle", "Amber fluted bottle"], a: 0,
+    why: "Bulk granules go in plain glass or plastic jars with close-fitting, airtight closures, with a measuring spoon supplied.", slide: 22,
+    hint: "It has to keep moisture out." },
+  { lvl: 3, type: "mc", q: "What is the key counselling point for bulk-forming laxative granules?",
+    opts: ["Take with plenty of water", "Take dry, straight before bed", "Chew thoroughly before swallowing", "Take only with milk"], a: 0,
+    why: "Bulk-forming laxatives must be taken with plenty of water, and not immediately before going to bed.", slide: 22,
+    hint: "They swell." },
+];
+
+const RANKS = [
+  { min: 0, name: "Loose Powder" },
+  { min: 40, name: "Wet Mass" },
+  { min: 60, name: "Granule" },
+  { min: 75, name: "Free-flowing Granule" },
+  { min: 90, name: "Master Granulator" },
+];
+const rankFor = (pct) => RANKS.filter(r => pct >= r.min).pop().name;
+
+// ---------- state ----------
+let S;
+function fresh(prev) {
+  return {
+    screen: "start",
+    mode: prev?.mode || "solo",
+    teamNames: prev?.teamNames || ["Team A", "Team B", "Team C", "Team D"],
+    teamCount: prev?.teamCount || 2,
+    timerOn: prev?.timerOn ?? true,
+    muted: prev?.muted ?? false,
+    teams: [],
+    turn: 0,
+    qi: 0,
+    log: [],     // {qi, team, correct, pts}
+    view: null,  // per-question UI state
+  };
+}
+let tick = null;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// ---------- sound ----------
+let ac = null;
+function beep(kind) {
+  if (S.muted) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const notes = kind === "good" ? [660, 880] : kind === "bad" ? [220, 160] : [520];
+    notes.forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = kind === "bad" ? "sawtooth" : "triangle"; o.frequency.value = f;
+      const t = ac.currentTime + i * 0.11;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.2);
+    });
+  } catch (e) {}
+}
+
+// ---------- game flow ----------
+function startGame() {
+  const n = S.mode === "solo" ? 1 : S.teamCount;
+  S.teams = Array.from({ length: n }, (_, i) => ({
+    name: S.mode === "solo" ? "You" : (S.teamNames[i] || "Team " + (i + 1)).trim() || "Team " + (i + 1),
+    score: 0, streak: 0, best: 0, correct: 0, answered: 0, fifty: true, hint: true,
+  }));
+  S.qi = 0; S.turn = 0; S.log = [];
+  S.screen = "level";
+  beep("tick");
+  render();
+}
+function limitFor(q) { return q.type === "order" || q.type === "match" ? 35 : 20; }
+function beginQuestion() {
+  const q = Q[S.qi];
+  const v = { remaining: limitFor(q), limit: limitFor(q), removed: [], hintShown: false, done: false, lifeUsed: false, pick: null };
+  if (q.type === "mc") v.order = shuffle(q.opts.map((_, i) => i));
+  if (q.type === "tf") v.order = [0, 1];
+  if (q.type === "order") { v.order = shuffle(q.items.map((_, i) => i)); v.picked = []; }
+  if (q.type === "match") { v.right = shuffle(q.pairs.map((_, i) => i)); v.pairs = {}; v.selLeft = null; }
+  S.view = v; S.screen = "q";
+  render(); startTimer();
+}
+function startTimer() {
+  clearInterval(tick);
+  if (!S.timerOn) return;
+  tick = setInterval(() => {
+    if (S.screen !== "q" || S.view.done) return clearInterval(tick);
+    S.view.remaining = Math.max(0, S.view.remaining - 0.25);
+    const bar = $(".timer");
+    if (bar) { bar.firstElementChild.style.width = (100 * S.view.remaining / S.view.limit) + "%"; bar.classList.toggle("low", S.view.remaining <= 5); }
+    const t = $("#tleft"); if (t) t.textContent = Math.ceil(S.view.remaining) + "s";
+    if (S.view.remaining <= 0) { clearInterval(tick); finish(false, true); }
+  }, 250);
+}
+function finish(correct, timeout = false) {
+  const v = S.view; if (v.done) return;
+  v.done = true; clearInterval(tick);
+  const t = S.teams[S.turn];
+  t.answered++;
+  let pts = 0;
+  if (correct) {
+    t.streak++; t.correct++; t.best = Math.max(t.best, t.streak);
+    const base = v.lifeUsed ? 75 : 100;
+    const bonus = S.timerOn ? Math.round(50 * v.remaining / v.limit) : 25;
+    const mult = t.streak >= 5 ? 2 : t.streak >= 3 ? 1.5 : 1;
+    pts = Math.round((base + bonus) * mult);
+    v.mult = mult; v.bonus = bonus;
+    t.score += pts;
+  } else {
+    t.streak = 0;
+  }
+  v.correct = correct; v.timeout = timeout; v.pts = pts;
+  S.log.push({ qi: S.qi, team: S.turn, correct, pts });
+  beep(correct ? "good" : "bad");
+  render();
+  const nb = $("#next"); if (nb) nb.focus();
+}
+function next() {
+  const prevLvl = Q[S.qi].lvl;
+  S.qi++;
+  if (S.teams.length > 1) S.turn = (S.turn + 1) % S.teams.length;
+  if (S.qi >= Q.length) { S.screen = "end"; render(); return; }
+  if (Q[S.qi].lvl !== prevLvl) { S.screen = "level"; render(); return; }
+  beginQuestion();
+}
+
+// ---------- answer handlers ----------
+function answerMC(idx) {
+  const q = Q[S.qi], v = S.view; if (v.done || v.removed.includes(idx)) return;
+  v.pick = idx;
+  finish(idx === q.a);
+}
+function useFifty() {
+  const q = Q[S.qi], v = S.view, t = S.teams[S.turn];
+  if (!t.fifty || v.done || q.type !== "mc") return;
+  t.fifty = false; v.lifeUsed = true;
+  v.removed = shuffle(q.opts.map((_, i) => i).filter(i => i !== q.a)).slice(0, 2);
+  render();
+}
+function useHint() {
+  const v = S.view, t = S.teams[S.turn];
+  if (!t.hint || v.done) return;
+  t.hint = false; v.lifeUsed = true; v.hintShown = true;
+  render();
+}
+function orderTap(i) {
+  const v = S.view; if (v.done) return;
+  const at = v.picked.indexOf(i);
+  if (at >= 0) v.picked.splice(at); else v.picked.push(i);
+  render();
+}
+function orderSubmit() {
+  const v = S.view; if (v.done || v.picked.length !== Q[S.qi].items.length) return;
+  finish(v.picked.every((x, k) => x === k));
+}
+function matchLeft(i) {
+  const v = S.view; if (v.done) return;
+  if (v.pairs[i] !== undefined) { delete v.pairs[i]; v.selLeft = null; }
+  else v.selLeft = v.selLeft === i ? null : i;
+  render();
+}
+function matchRight(j) {
+  const v = S.view; if (v.done || v.selLeft === null) return;
+  for (const k in v.pairs) if (v.pairs[k] === j) delete v.pairs[k];
+  v.pairs[v.selLeft] = j; v.selLeft = null;
+  render();
+}
+function matchSubmit() {
+  const q = Q[S.qi], v = S.view; if (v.done || Object.keys(v.pairs).length !== q.pairs.length) return;
+  finish(q.pairs.every((_, i) => v.pairs[i] === i));
+}
+
+// ---------- granule meter ----------
+const SPOTS = (() => {
+  const pts = [], ga = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < Q.length; i++) { const r = 15 * Math.sqrt(i + 0.6); pts.push([100 + r * Math.cos(i * ga), 92 + r * Math.sin(i * ga)]); }
+  return pts;
+})();
+function granuleSVG(teamIdx) {
+  const entries = S.log.filter(l => teamIdx === null || l.team === teamIdx);
+  const good = entries.filter(l => l.correct).length;
+  const bad = entries.length - good;
+  let s = `<svg viewBox="0 0 200 200" role="img" aria-label="Granule built from ${good} correct answers, ${bad} fines">`;
+  s += `<line x1="30" y1="182" x2="170" y2="182" stroke="var(--line)" stroke-width="3" stroke-dasharray="4 4"/>`;
+  for (let i = 0; i < Q.length; i++) {
+    const [x, y] = SPOTS[i];
+    if (i < good) s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="11" fill="var(--sage)" stroke="var(--bg)" stroke-width="2"/>`;
+    else s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--line)"/>`;
+  }
+  for (let i = 0; i < bad; i++) s += `<circle cx="${40 + (i % 14) * 9}" cy="${192 - Math.floor(i / 14) * 7}" r="3" fill="var(--bad)"/>`;
+  return s + `</svg>`;
+}
+
+// ---------- render ----------
+function hud() {
+  const t = S.teams[S.turn];
+  const q = Q[Math.min(S.qi, Q.length - 1)];
+  const inGame = S.screen !== "start";
+  return `<header class="hud">
+    <div class="brand">Granule <span>Rush</span></div>
+    ${inGame && S.screen !== "end" ? `<div class="stats">
+      <div class="stat">Level <b>${q.lvl + 1}</b>/4</div>
+      <div class="stat">Q <b>${S.qi + 1}</b>/${Q.length}</div>
+      ${S.teams.length === 1 ? `<div class="stat">Score <b>${t.score}</b></div><div class="stat">Streak <b>${t.streak}</b>${t.streak >= 5 ? " ×2" : t.streak >= 3 ? " ×1.5" : ""}</div>` : ""}
+    </div>` : `<div class="stats muted">PHD212 · L4 Granules</div>`}
+    <button class="iconbtn" id="mute" aria-pressed="${!S.muted}">${S.muted ? "Sound off" : "Sound on"}</button>
+  </header>`;
+}
+function sidePanel() {
+  const multi = S.teams.length > 1;
+  const idx = multi ? null : 0;
+  const entries = S.log.filter(l => idx === null || l.team === idx);
+  const pct = entries.length ? Math.round(100 * entries.filter(l => l.correct).length / entries.length) : 0;
+  let html = `<section class="card meter"><div class="eyebrow">${multi ? "Class granule" : "Your granule"}</div>
+    ${granuleSVG(idx)}
+    <div class="cap">Correct answers bind particles together. Wrong ones fall through the sieve as fines.</div>
+    ${!multi && entries.length ? `<div class="rankname" style="margin-top:8px">${rankFor(pct)}</div>` : ""}
+  </section>`;
+  if (multi) {
+    html += `<section class="card"><div class="eyebrow" style="margin-bottom:10px">Scoreboard</div><div class="board">${
+      S.teams.map((t, i) => `<div class="row ${i === S.turn && S.screen !== "end" ? "active" : ""}"><div><div class="nm">${esc(t.name)}</div><div class="st">streak ${t.streak} · best ${t.best}</div></div><div class="sc">${t.score}</div></div>`).join("")
+    }</div></section>`;
+  }
+  html += `<section class="card"><div class="eyebrow" style="margin-bottom:10px">Progress</div><div class="progress">${
+    Q.map((_, i) => { const l = S.log.find(x => x.qi === i); return `<i class="${l ? (l.correct ? "g" : "b") : ""} ${i === S.qi && S.screen !== "end" ? "c" : ""}" title="Q${i + 1}"></i>`; }).join("")
+  }</div></section>`;
+  return `<aside class="side">${html}</aside>`;
+}
+function startScreen() {
+  return `<section class="card hero">
+    <div class="eyebrow">PHD212 · Lecture 4 pop quiz</div>
+    <h1>Granule <em>Rush</em></h1>
+    <p>Build a granule one right answer at a time. ${Q.length} questions across four levels, from powder basics to dispensing. Answer fast and keep your streak alive for bonus points.</p>
+    <div class="setup">
+      <div><div class="eyebrow" style="margin-bottom:8px">Mode</div>
+        <div class="seg" role="group" aria-label="Mode">
+          <button data-mode="solo" aria-pressed="${S.mode === "solo"}">Solo</button>
+          <button data-mode="teams" aria-pressed="${S.mode === "teams"}">Teams (projector)</button>
+        </div></div>
+      ${S.mode === "teams" ? `<div><div class="eyebrow" style="margin-bottom:8px">Number of teams</div>
+        <div class="seg" role="group" aria-label="Number of teams">${[2, 3, 4].map(n => `<button data-tc="${n}" aria-pressed="${S.teamCount === n}">${n} teams</button>`).join("")}</div>
+        <div class="teams" style="margin-top:10px">${Array.from({ length: S.teamCount }, (_, i) => `<label><span class="eyebrow">Team ${i + 1}</span><input id="team${i}" data-tn="${i}" value="${esc(S.teamNames[i])}" maxlength="20"></label>`).join("")}</div>
+        <p class="kbd">Teams take turns, one question each. Each team gets its own 50:50 and hint.</p></div>` : ""}
+      <div><div class="eyebrow" style="margin-bottom:8px">Timer</div>
+        <div class="seg" role="group" aria-label="Timer">
+          <button data-timer="on" aria-pressed="${S.timerOn}">On (20 s)</button>
+          <button data-timer="off" aria-pressed="${!S.timerOn}">Off (relaxed)</button>
+        </div></div>
+      <div class="rules">
+        <div><b>+100</b> per correct answer</div>
+        <div><b>+50</b> max speed bonus</div>
+        <div><b>×1.5</b> at a 3 streak, <b>×2</b> at 5</div>
+        <div><b>50:50</b> and <b>Hint</b> once each (−25)</div>
+      </div>
+      <div class="levels">${LEVELS.map((l, i) => `<div class="lvl"><span class="eyebrow">Level ${i + 1}</span><b>${l.name}</b><span>${l.blurb}</span></div>`).join("")}</div>
+      <div><button class="big" id="go">Start the quiz</button></div>
+    </div>
+  </section>`;
+}
+function levelScreen() {
+  const l = LEVELS[Q[S.qi].lvl];
+  const t = S.teams[S.turn];
+  return `<section class="card splash">
+    <div class="eyebrow">Level ${Q[S.qi].lvl + 1} of 4 · ${l.slides}</div>
+    <h2>${l.name}</h2>
+    <p>${l.blurb} ${Q.filter(q => q.lvl === Q[S.qi].lvl).length} questions.${S.teams.length > 1 ? ` <b>${esc(t.name)}</b> goes first.` : ""}</p>
+    <button class="big" id="lvlgo">Go</button>
+  </section>`;
+}
+function optionLabel(q, i) { return q.type === "tf" ? ["True", "False"][i] : q.opts[i]; }
+function questionScreen() {
+  const q = Q[S.qi], v = S.view, t = S.teams[S.turn];
+  let body = "";
+  if (q.type === "mc" || q.type === "tf") {
+    body = `<div class="opts">${v.order.map((i, k) => {
+      let cls = "opt";
+      if (v.removed.includes(i)) cls += " gone";
+      if (v.done && i === q.a) cls += " right";
+      if (v.done && v.pick === i && i !== q.a) cls += " wrong";
+      return `<button class="${cls}" data-opt="${i}" ${v.done || v.removed.includes(i) ? "disabled" : ""}><span class="k">${k + 1}</span><span>${esc(optionLabel(q, i))}</span></button>`;
+    }).join("")}</div>`;
+  } else if (q.type === "order") {
+    body = `<p class="muted" style="margin-top:-6px">Tap the steps in order. Tap a numbered step to undo from there.</p><div class="pick">${v.order.map(i => {
+      const at = v.picked.indexOf(i);
+      let cls = "chip" + (at >= 0 ? " on" : "");
+      if (v.done) cls += at === i ? " right" : " wrong";
+      return `<button class="${cls}" data-ord="${i}" ${v.done ? "disabled" : ""}><span class="n">${at >= 0 ? at + 1 : "·"}</span>${esc(q.items[i])}${v.done ? `<span class="tag">step ${i + 1}</span>` : ""}</button>`;
+    }).join("")}</div>`;
+  } else if (q.type === "match") {
+    const letters = "ABCD";
+    body = `<p class="muted" style="margin-top:-6px">Tap an ingredient, then its role. Tap a matched ingredient to clear it.</p><div class="match">
+      <div class="col">${q.pairs.map((p, i) => {
+        const has = v.pairs[i] !== undefined;
+        let cls = "chip" + (has || v.selLeft === i ? " on" : "");
+        if (v.done) cls += v.pairs[i] === i ? " right" : " wrong";
+        return `<button class="${cls}" data-ml="${i}" ${v.done ? "disabled" : ""}><span class="n">${letters[i]}</span>${esc(p[0])}${has ? `<span class="tag">→ ${esc(q.pairs[v.pairs[i]][1])}</span>` : ""}</button>`;
+      }).join("")}</div>
+      <div class="col">${v.right.map(j => {
+        const owner = Object.keys(v.pairs).find(k => v.pairs[k] === j);
+        let cls = "chip" + (owner !== undefined ? " on" : "");
+        if (v.done) cls += " ";
+        return `<button class="${cls}" data-mr="${j}" ${v.done || v.selLeft === null ? "disabled" : ""}><span class="n">${owner !== undefined ? letters[owner] : "·"}</span>${esc(q.pairs[j][1])}</button>`;
+      }).join("")}</div></div>`;
+  }
+  const canSubmit = q.type === "order" ? v.picked.length === q.items.length : q.type === "match" ? Object.keys(v.pairs).length === q.pairs.length : false;
+  const tools = v.done ? "" : `<div class="tools">
+      ${q.type === "mc" ? `<button class="life" id="fifty" ${t.fifty ? "" : "disabled"}>50:50${t.fifty ? "" : " used"}</button>` : ""}
+      ${q.hint ? `<button class="life" id="hintbtn" ${t.hint && !v.hintShown ? "" : "disabled"}>Hint${t.hint || v.hintShown ? "" : " used"}</button>` : ""}
+      ${q.type === "order" || q.type === "match" ? `<button class="big submit" id="sub" ${canSubmit ? "" : "disabled"} style="${canSubmit ? "" : "opacity:.4"}">Lock it in</button>` : ""}
+    </div>`;
+  let fb = "";
+  if (v.done) {
+    const title = v.correct ? ["Bonded!", "Solid bridge!", "Nicely granulated!", "Free-flowing!"][S.qi % 4] : v.timeout ? "Time's up" : "Fell through the sieve";
+    fb = `<div class="fb ${v.correct ? "good" : "bad"}" role="status">
+      <h3>${title}</h3>
+      ${v.correct ? `<div class="pts">+${v.pts} points${v.mult > 1 ? ` (streak ×${v.mult})` : ""}</div>` : ""}
+      <div>${esc(q.why)}</div>
+      <div class="ref">Revise: slide ${q.slide}</div>
+      <div><button class="big" id="next">${S.qi + 1 >= Q.length ? "See results" : "Next question"}</button></div>
+    </div>`;
+  }
+  return `<section class="card">
+    <div class="qhead">
+      <span class="eyebrow">Level ${q.lvl + 1} · ${LEVELS[q.lvl].name} · Q${S.qi + 1}</span>
+      ${S.teams.length > 1 ? `<span class="turn">${esc(t.name)}'s turn</span>` : ""}
+    </div>
+    <h2 class="qtext">${esc(q.q)}</h2>
+    ${S.timerOn ? `<div class="timer ${v.remaining <= 5 ? "low" : ""}" aria-hidden="true"><i style="width:${100 * v.remaining / v.limit}%"></i></div><div class="kbd" style="margin:-12px 0 12px" aria-live="off"><span id="tleft">${Math.ceil(v.remaining)}s</span> left</div>` : ""}
+    ${body}
+    ${v.hintShown && !v.done ? `<div class="hint"><b>Hint:</b> ${esc(q.hint)}</div>` : ""}
+    ${tools}
+    ${fb}
+    ${!v.done && (q.type === "mc" || q.type === "tf") ? `<div class="kbd">Keyboard: press 1–${v.order.length} to answer.</div>` : ""}
+  </section>`;
+}
+function endScreen() {
+  const multi = S.teams.length > 1;
+  const sorted = S.teams.map((t, i) => ({ ...t, i })).sort((a, b) => b.score - a.score);
+  const top = sorted[0];
+  const me = S.teams[0];
+  const pct = Math.round(100 * (multi ? S.log.filter(l => l.correct).length / S.log.length : me.correct / Q.length));
+  const missed = S.log.filter(l => !l.correct);
+  const perLevel = LEVELS.map((l, li) => {
+    const e = S.log.filter(x => Q[x.qi].lvl === li);
+    return { name: l.name, c: e.filter(x => x.correct).length, n: e.length };
+  });
+  return `<section class="card">
+    <div class="eyebrow">Final result</div>
+    <h2 style="font-size:clamp(32px,5vw,52px);font-weight:800;margin:6px 0 4px">${multi ? `${esc(top.name)} wins!` : rankFor(pct)}</h2>
+    <p class="muted" style="margin:0">${multi ? `${top.score} points. The class got ${pct}% right overall.` : `You scored ${me.score} points and got ${me.correct} of ${Q.length} right (${pct}%).`}</p>
+    ${!multi ? `<div class="ranks">${RANKS.map(r => `<span class="${r.name === rankFor(pct) ? "me" : ""}">${r.name} ${r.min}%+</span>`).join("")}</div>` : ""}
+    <div class="endgrid">
+      ${multi ? sorted.map((t, k) => `<div class="tile"><span>#${k + 1} · ${esc(t.name)}</span><b>${t.score}</b><span>${t.correct}/${t.answered} right · best streak ${t.best}</span></div>`).join("")
+        : `<div class="tile"><b>${me.score}</b><span>points</span></div><div class="tile"><b>${me.correct}/${Q.length}</b><span>correct</span></div><div class="tile"><b>${me.best}</b><span>best streak</span></div>`}
+    </div>
+    <div class="eyebrow" style="margin-bottom:8px">By level</div>
+    <div class="endgrid" style="margin-top:0">${perLevel.map((l, i) => `<div class="tile"><span>Level ${i + 1} · ${l.name}</span><b>${l.c}/${l.n}</b></div>`).join("")}</div>
+    ${missed.length ? `<div class="eyebrow" style="margin-top:8px">Review what was missed (${missed.length})</div>
+      <div class="review">${missed.map(m => { const q = Q[m.qi]; return `<details><summary>Q${m.qi + 1}. ${esc(q.q)}</summary><p style="margin:8px 0 4px">${esc(q.why)}</p><div class="kbd">Slide ${q.slide}${multi ? ` · ${esc(S.teams[m.team].name)}` : ""}</div></details>`; }).join("")}</div>`
+      : `<p style="margin-top:12px"><b>A perfect run. Every particle bonded.</b></p>`}
+    <div class="actions">
+      <button class="big" id="again">Play again</button>
+      <button class="ghost" id="home">Change mode</button>
+    </div>
+  </section>`;
+}
+function render() {
+  const app = $("#app");
+  let main;
+  if (S.screen === "start") main = startScreen();
+  else if (S.screen === "level") main = levelScreen();
+  else if (S.screen === "q") main = questionScreen();
+  else main = endScreen();
+  app.innerHTML = hud() + (S.screen === "start" ? main : `<div class="stage">${main}${sidePanel()}</div>`);
+}
+
+// ---------- events ----------
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.id === "mute") { S.muted = !S.muted; render(); return; }
+  if (b.dataset.mode) { S.mode = b.dataset.mode; render(); return; }
+  if (b.dataset.tc) { S.teamCount = +b.dataset.tc; render(); return; }
+  if (b.dataset.timer) { S.timerOn = b.dataset.timer === "on"; render(); return; }
+  if (b.id === "go") return startGame();
+  if (b.id === "lvlgo") return beginQuestion();
+  if (b.dataset.opt !== undefined) return answerMC(+b.dataset.opt);
+  if (b.id === "fifty") return useFifty();
+  if (b.id === "hintbtn") return useHint();
+  if (b.dataset.ord !== undefined) return orderTap(+b.dataset.ord);
+  if (b.dataset.ml !== undefined) return matchLeft(+b.dataset.ml);
+  if (b.dataset.mr !== undefined) return matchRight(+b.dataset.mr);
+  if (b.id === "sub") return Q[S.qi].type === "order" ? orderSubmit() : matchSubmit();
+  if (b.id === "next") return next();
+  if (b.id === "again") { const keep = S; S = fresh(keep); startGame(); return; }
+  if (b.id === "home") { S = fresh(S); render(); return; }
+});
+document.addEventListener("input", (e) => {
+  if (e.target.dataset.tn !== undefined) S.teamNames[+e.target.dataset.tn] = e.target.value;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT") return;
+  if (S.screen === "q" && !S.view.done) {
+    const q = Q[S.qi];
+    if ((q.type === "mc" || q.type === "tf") && /^[1-4]$/.test(e.key)) {
+      const k = +e.key - 1; if (k < S.view.order.length) answerMC(S.view.order[k]);
+    }
+  }
+});
+
+// ---------- boot (keeps a game in progress across page updates) ----------
+function start(data) {
+  S = data && data.S ? data.S : fresh();
+  render();
+  if (S.screen === "q" && !S.view.done) startTimer();
+}
+window.claude?.hot?.snapshot?.(() => ({ S }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+</body>
+</html>
